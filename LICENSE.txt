@@ -1,4 +1,4 @@
-Copyright (c) 2015 Arron Norwell
+Copyright (c) 2015 Datto
 
 MIT License
 
