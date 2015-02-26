@@ -23,5 +23,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "minitest-reporters"
 
   spec.add_dependency 'cassandra-driver'
-  spec.add_dependency 'cequel'
 end

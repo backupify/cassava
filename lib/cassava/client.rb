@@ -7,23 +7,37 @@ module Cassava
       @session = session
     end
 
+    # @see #insert
     def insert_async(table, data)
       session.execute_async(insert_statement(table, data), :arguments => data.values)
     end
 
+    # @param [Symbol] table the table name
+    # @param [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       session.execute(insert_statement(table, data), :arguments => data.values)
     end
 
     # @param [Symbol] table the table name
     # @param [Array<Symbol>] An optional list of column names (as symbols), to only select those columns
-    # @return [StatementBuilder] A select builder representing the partially completed statement.
+    # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def select(table, columns = nil)
       StatementBuilder.new(session).select(table, columns)
     end
 
+    # @param [Symbol] table the table name
+    # @param [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
+    # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def delete(table, columns = nil)
       StatementBuilder.new(session).delete(table, columns)
+    end
+
+    def execute_async(statement, opts = {})
+      session.execute_async(statement, opts)
+    end
+
+    def execute(statement, opts = {})
+      session.execute(statement, opts)
     end
 
     private
