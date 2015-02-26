@@ -32,10 +32,16 @@ module Cassava
       StatementBuilder.new(session).delete(table, columns)
     end
 
+    # Pass a raw query to execute synchronously to the underlying session object.
+    # @param [String] statement
+    # @param [Hash] options accepted by Cassandra::Session
     def execute_async(statement, opts = {})
       session.execute_async(statement, opts)
     end
 
+    # Pass a raw query to execute asynchronously to the underlying session object.
+    # @param [String] statement
+    # @param [Hash] options accepted by Cassandra::Session
     def execute(statement, opts = {})
       session.execute(statement, opts)
     end
@@ -67,48 +73,82 @@ module Cassava
       @clauses = clauses
     end
 
-    def execute_async(opts = {})
-      session.execute_async(statement, opts)
+    # Execute the statement synchronously
+    # @param [Hash] options accepted by Cassandra::Session
+    def execute(opts = {})
+      options = opts.dup.merge(:arguments => prepared_arguments)
+      session.execute(prepared_statement, options)
     end
 
-    def execute(opts = {})
-      session.execute(statement, opts)
+    # Execute the statement asynchronously
+    # @param [Hash] options accepted by Cassandra::Session
+    def execute_async(opts = {})
+      options = opts.dup.merge(:arguments => prepared_arguments)
+      session.execute_async(prepared_statement, options)
+    end
+
+    # @param [Symbol] table to select data from
+    # @param [Array<Symbol>] Columns to select -- defaults to all.
+    # @return [StatementBuilder]
+    def select(table, columns = nil)
+      add_clause(SelectClause.new(table, columns), :main)
+    end
+
+    # @param [Symbol] table to delete data from
+    # @param [Array<Symbol>] Columns to delete -- defaults to all.
+    # @return [StatementBuilder]
+    def delete(table, columns = nil)
+      add_clause(DeleteClause.new(table, columns), :main)
+    end
+
+    # Provide either a String and a list of arguments, or a hash. Examples:
+    #      statement.where('id = ? and field > ?', 1, 'a')
+    #
+    #      statement.where(:id => 1, :field => 'x')
+    # @return [StatementBuilder]
+    def where(*args)
+      clause = clauses[:where] || WhereClause.new([], [])
+      add_clause(clause.where(*args), :where)
+    end
+
+    # Allow filtering for this query
+    # @return [StatementBuilder]
+    def allow_filtering
+      add_clause('ALLOW FILTERING', :allow_filtering)
+    end
+
+    # param [Symbol] clustering_column to order by
+    # @param [:asc|:desc] the direction to order by, defaults to :asc
+    # @return [StatementBuilder]
+    def order(clustering_column, direction = :asc)
+      add_clause("ORDER BY #{clustering_column.to_s} #{direction.to_s}", :order)
+    end
+
+    # param [Integer] maximum number of results to return
+    # @return [StatementBuilder]
+    def limit(n)
+      add_clause("LIMIT #{n.to_i}", :limit)
+    end
+
+    # Return the count of objects rather than the objects themselves
+    # @return [StatementBuilder]
+    def count
+      add_clause(clauses[:main].count, :main)
     end
 
     def statement
       clauses.sort_by { |s| CLAUSE_ORDERING[s[0]] }.map { |s| s[1] }.join(' ')
     end
 
-    def select(table, columns = nil)
-      add_clause(SelectClause.new(table, columns), :main)
-    end
-
-    def delete(table, columns = nil)
-      add_clause(DeleteClause.new(table, columns), :main)
-    end
-
-    def where(arg)
-      clause = clauses[:where] || WhereClause.new([])
-      add_clause(clause.where(arg), :where)
-    end
-
-    def allow_filtering
-      add_clause('ALLOW FILTERING', :allow_filtering)
-    end
-
-    def order(clustering_column, direction = :asc)
-      add_clause("ORDER BY #{clustering_column.to_s} #{direction.to_s}", :order)
-    end
-
-    def limit(n)
-      add_clause("LIMIT #{n}", :limit)
-    end
-
-    def count
-      add_clause(clauses[:main].count, :main)
-    end
-
     private
+
+    def prepared_statement
+      session.prepare(statement)
+    end
+
+    def prepared_arguments
+      clauses[:where] ? clauses[:where].arguments : []
+    end
 
     # Adds a clause of a given type.
     # @return [StatementBuilder] A new StatementBuilder with the added clause
@@ -144,19 +184,24 @@ module Cassava
     end
   end
 
-  WhereClause = Struct.new(:parts) do
-    def where(clause)
-      self.class.new(parts.dup << clause)
+  WhereClause = Struct.new(:parts, :arguments) do
+    def where(*args)
+      new_parts = self.parts.dup || []
+      new_arguments = self.arguments.dup || []
+
+      case args[0]
+      when String
+        new_parts << args[0]
+        new_arguments += args[1..-1]
+      when Hash
+        new_parts += args[0].map { |key, value| "#{key} #{where_string(value)}" }
+        new_arguments += args[0].values.flatten
+      end
+      self.class.new(new_parts, new_arguments)
     end
 
     def to_s
-      predicates = parts.map do |part|
-        case part
-        when String then part
-        when Hash then part.map { |key, value| "#{key} #{where_string(value)}" }.join(' AND ')
-        end
-      end
-      "WHERE #{predicates.join(' AND ')}"
+      "WHERE #{parts.join(' AND ')}"
     end
 
     private
@@ -165,8 +210,8 @@ module Cassava
       case value
       when Array
         quoted_values = value.map { |v| type_quote(v) }
-        "IN(#{quoted_values.join(', ')})"
-      else "= #{type_quote(value)}"
+        "IN(#{quoted_values.map { |_| '?' }.join(', ')})"
+      else "= ?"
       end
     end
 

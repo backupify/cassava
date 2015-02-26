@@ -66,8 +66,13 @@ module Cassava
           assert_equal [1,2,3].to_set, items.map { |x| x['a'] }.to_set
         end
 
-        should 'allow string based where clauses' do
+        should 'allow string-based where clauses' do
           items = @client.select(:test).where("id = 'i' and a > 1").execute
+          assert_equal [2,3].to_set, items.map { |x| x['a'] }.to_set
+        end
+
+        should 'allow string-based where clauses with arguments' do
+          items = @client.select(:test).where("id = ? and a > ?", 'i', 1).execute
           assert_equal [2,3].to_set, items.map { |x| x['a'] }.to_set
         end
 
@@ -80,7 +85,6 @@ module Cassava
           items = @client.select(:test).where(:id => 'i', :a => 1, :b => %w(a b)).execute
           assert_equal [1], items.map { |x| x['a'] }
         end
-
       end
 
       should 'order by ascending primary key by default' do
@@ -123,7 +127,7 @@ module Cassava
       end
 
       should 'support count queries' do
-        count = @client.select(:test).where("id = 'i' and a > 1").count.execute
+        count = @client.select(:test).where("id = ? and a > ?", 'i', 1).count.execute
         assert_equal 2, count.first["count"]
       end
     end
