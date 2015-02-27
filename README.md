@@ -74,7 +74,7 @@ client.select(:table, [:id, :a, :b]).execute
 Ordering can be specified using the order method:
 
 ```ruby
-client.select(:table).where('id = 1 AND a > 2').order(:a, :desc).execute
+client.select(:table).where('id = ? AND a > ?', 1, 'b').order(:a, :desc).execute
 ```
 
 Filtering is permitting with the `allow_filtering` method.
@@ -108,4 +108,3 @@ Note here that :c and :d must not be part of the primary key.
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create a new Pull Request
->>>>>>> initial version of client

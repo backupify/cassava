@@ -35,6 +35,12 @@ module Cassava
         item = { :id => 'i', :a => 1, :c => 'c'}
         assert_raises(Cassandra::Errors::InvalidError) { @client.insert(:test, item) }
       end
+
+      should 'allow the insertion of columns with mismatched quotes' do
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1}
+        @client.insert(:test, item)
+        assert_equal string_keys(item), @client.select(:test).execute.first
+      end
     end
 
     context 'select' do
@@ -84,6 +90,20 @@ module Cassava
         should 'create an IN clause when a list of values is passed' do
           items = @client.select(:test).where(:id => 'i', :a => 1, :b => %w(a b)).execute
           assert_equal [1], items.map { |x| x['a'] }
+        end
+
+        context 'hash arguments' do
+          should 'allow single and double quotes in the value' do
+            items = @client.select(:test).where(:id => "'\"abc").execute
+            assert_equal [], items.to_a
+          end
+        end
+
+        context 'string arguments' do
+          should 'allow single and double quotes in the value' do
+            items = @client.select(:test).where('id = ?', "'\"abc").execute
+            assert_equal [], items.to_a
+          end
         end
       end
 
@@ -155,6 +175,20 @@ module Cassava
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
         assert_equal nil, items.first['c']
         assert_equal nil, items.first['d']
+      end
+
+      context 'hash arguments' do
+        should 'allow single and double quotes in the value' do
+          # no error raised
+          @client.delete(:test).where(:id => "'\"abc").execute
+        end
+      end
+
+      context 'string arguments' do
+        should 'allow single and double quotes in the value' do
+          # no error raised
+          @client.delete(:test).where('id = ?', "'\"abc").execute
+        end
       end
     end
   end
