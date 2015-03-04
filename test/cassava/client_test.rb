@@ -35,6 +35,12 @@ module Cassava
         item = { :id => 'i', :a => 1, :c => 'c'}
         assert_raises(Cassandra::Errors::InvalidError) { @client.insert(:test, item) }
       end
+
+      should 'allow the insertion of columns with mismatched quotes' do
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1}
+        @client.insert(:test, item)
+        assert_equal string_keys(item), @client.select(:test).execute.first
+      end
     end
 
     context 'select' do
@@ -66,8 +72,13 @@ module Cassava
           assert_equal [1,2,3].to_set, items.map { |x| x['a'] }.to_set
         end
 
-        should 'allow string based where clauses' do
+        should 'allow string-based where clauses' do
           items = @client.select(:test).where("id = 'i' and a > 1").execute
+          assert_equal [2,3].to_set, items.map { |x| x['a'] }.to_set
+        end
+
+        should 'allow string-based where clauses with arguments' do
+          items = @client.select(:test).where("id = ? and a > ?", 'i', 1).execute
           assert_equal [2,3].to_set, items.map { |x| x['a'] }.to_set
         end
 
@@ -81,6 +92,19 @@ module Cassava
           assert_equal [1], items.map { |x| x['a'] }
         end
 
+        context 'hash arguments' do
+          should 'allow single and double quotes in the value' do
+            items = @client.select(:test).where(:id => "'\"abc").execute
+            assert_equal [], items.to_a
+          end
+        end
+
+        context 'string arguments' do
+          should 'allow single and double quotes in the value' do
+            items = @client.select(:test).where('id = ?', "'\"abc").execute
+            assert_equal [], items.to_a
+          end
+        end
       end
 
       should 'order by ascending primary key by default' do
@@ -123,7 +147,7 @@ module Cassava
       end
 
       should 'support count queries' do
-        count = @client.select(:test).where("id = 'i' and a > 1").count.execute
+        count = @client.select(:test).where("id = ? and a > ?", 'i', 1).count.execute
         assert_equal 2, count.first["count"]
       end
     end
@@ -151,6 +175,20 @@ module Cassava
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
         assert_equal nil, items.first['c']
         assert_equal nil, items.first['d']
+      end
+
+      context 'hash arguments' do
+        should 'allow single and double quotes in the value' do
+          # no error raised
+          @client.delete(:test).where(:id => "'\"abc").execute
+        end
+      end
+
+      context 'string arguments' do
+        should 'allow single and double quotes in the value' do
+          # no error raised
+          @client.delete(:test).where('id = ?', "'\"abc").execute
+        end
       end
     end
   end
