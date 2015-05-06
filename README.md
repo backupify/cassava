@@ -1,5 +1,7 @@
 # Cassava
 
+[![Code Climate](https://codeclimate.com/github/backupify/cassava/badges/gpa.svg)](https://codeclimate.com/github/backupify/cassava)
+
 An unopinionated Cassandra client built on top of the Datastax Cassandra Driver. Cassava provides a higher-level statement execution interface while still supporting asynchronous queries and the ability to connect to multiple clusters.
 
  _If prepared incorrectly, the cassava plant can produce cyanide, a deadly compound when consumed._
