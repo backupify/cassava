@@ -1,49 +1,53 @@
 module Cassava
   class Client
-    attr_reader :session
+    attr_reader :session, :executor
 
     # @param [Cassandra::Session] The session object
-    def initialize(session)
+    # @option opts [Object] :logger responding to :debug, :info, :warn, :error, :fatal
+    def initialize(session, opts = {})
       @session = session
+      logger = opts[:logger] || NullLogger.new
+      @executor = Executor.new(session, logger)
     end
 
     # @see #insert
     def insert_async(table, data)
-      session.execute_async(insert_statement(table, data), :arguments => data.values)
+      executor.execute_async(insert_statement(table, data), :arguments => data.values)
     end
 
     # @param [Symbol] table the table name
     # @param [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
-      session.execute(insert_statement(table, data), :arguments => data.values)
+      statement = insert_statement(table, data)
+      executor.execute(statement, :arguments => data.values)
     end
 
     # @param [Symbol] table the table name
     # @param [Array<Symbol>] An optional list of column names (as symbols), to only select those columns
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def select(table, columns = nil)
-      StatementBuilder.new(session).select(table, columns)
+      StatementBuilder.new(executor).select(table, columns)
     end
 
     # @param [Symbol] table the table name
     # @param [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def delete(table, columns = nil)
-      StatementBuilder.new(session).delete(table, columns)
+      StatementBuilder.new(executor).delete(table, columns)
     end
 
     # Pass a raw query to execute synchronously to the underlying session object.
     # @param [String] statement
     # @param [Hash] options accepted by Cassandra::Session
     def execute_async(statement, opts = {})
-      session.execute_async(statement, opts)
+      executor.execute_async(statement, opts)
     end
 
     # Pass a raw query to execute asynchronously to the underlying session object.
     # @param [String] statement
     # @param [Hash] options accepted by Cassandra::Session
     def execute(statement, opts = {})
-      session.execute(statement, opts)
+      executor.execute(statement, opts)
     end
 
     private
@@ -51,12 +55,12 @@ module Cassava
     def insert_statement(table, data)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
-      session.prepare(statement_cql)
+      executor.prepare(statement_cql)
     end
   end
 
   class StatementBuilder
-    attr_reader :session, :table, :clauses
+    attr_reader :executor, :table, :clauses
 
     CLAUSE_ORDERING = {
                        :main => 0,
@@ -67,8 +71,8 @@ module Cassava
                        :allow_filtering => 5
                       }
 
-    def initialize(session, clauses = {})
-      @session = session
+    def initialize(executor, clauses = {})
+      @executor = executor
       @table = table
       @clauses = clauses
     end
@@ -77,14 +81,14 @@ module Cassava
     # @param [Hash] options accepted by Cassandra::Session
     def execute(opts = {})
       options = opts.dup.merge(:arguments => prepared_arguments)
-      session.execute(prepared_statement, options)
+      executor.execute(prepared_statement, options)
     end
 
     # Execute the statement asynchronously
     # @param [Hash] options accepted by Cassandra::Session
     def execute_async(opts = {})
       options = opts.dup.merge(:arguments => prepared_arguments)
-      session.execute_async(prepared_statement, options)
+      executor.execute_async(prepared_statement, options)
     end
 
     # @param [Symbol] table to select data from
@@ -143,7 +147,7 @@ module Cassava
     private
 
     def prepared_statement
-      session.prepare(statement)
+      executor.prepare(statement)
     end
 
     def prepared_arguments
@@ -155,7 +159,7 @@ module Cassava
     def add_clause(clause, type)
       clauses_copy = clauses.dup
       clauses_copy[type] = clause
-      self.class.new(session, clauses_copy)
+      self.class.new(executor, clauses_copy)
     end
   end
 
@@ -221,5 +225,36 @@ module Cassava
       when String then "'#{value}'"
       end
     end
+  end
+
+  Executor = Struct.new(:session, :logger) do
+    def execute(statement, opts = {})
+      log_statement(statement, opts)
+      session.execute(statement, opts)
+    rescue => e
+      log_error(e, statement, opts)
+      raise e
+    end
+
+    def execute_async(statement, opts = {})
+      log_statement(statement, opts)
+      session.execute_async(statement, opts)
+    end
+
+    def prepare(*args)
+      session.prepare(*args)
+    end
+
+    def log_statement(statement, opts)
+      logger.debug("Executing Cassandra request #{statement.to_s} with options #{opts}")
+    end
+
+    def log_error(e, statement, opts)
+      logger.debug("Error #{e} executing Cassandra request #{statement.to_s} with options #{opts}")
+    end
+  end
+
+  class NullLogger
+    def method_missing(*); end
   end
 end
