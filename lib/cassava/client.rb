@@ -17,8 +17,8 @@ module Cassava
 
     # @param [Symbol] table the table name
     # @param [Hash] A hash of column names to data, which will be inserted into the table
-    def insert(table, data)
-      statement = insert_statement(table, data)
+    def insert(table, data, options = {})
+      statement = insert_statement(table, data, options)
       executor.execute(statement, :arguments => data.values)
     end
 
@@ -52,9 +52,10 @@ module Cassava
 
     private
 
-    def insert_statement(table, data)
+    def insert_statement(table, data, options)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
+      statement_cql << " IF NOT EXISTS" if options[:if_not_exists]
       executor.prepare(statement_cql)
     end
   end
