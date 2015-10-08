@@ -11,8 +11,8 @@ module Cassava
     end
 
     # @see #insert
-    def insert_async(table, data)
-      executor.execute_async(insert_statement(table, data), :arguments => data.values)
+    def insert_async(table, data, options = {})
+      executor.execute_async(insert_statement(table, data, options), :arguments => data.values)
     end
 
     # @param [Symbol] table the table name
@@ -52,7 +52,7 @@ module Cassava
 
     private
 
-    def insert_statement(table, data, options)
+    def insert_statement(table, data, options = {})
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
       statement_cql << " IF NOT EXISTS" if options[:if_not_exists]
