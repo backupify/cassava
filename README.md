@@ -11,7 +11,7 @@ An unopinionated Cassandra client built on top of the Datastax Cassandra Driver.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cassava'
+gem 'cassava', github: 'backupify/cassava'
 ```
 
 And then execute:
