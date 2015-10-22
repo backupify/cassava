@@ -41,10 +41,46 @@ module Cassava
         @client.insert(:test, item)
         assert_equal string_keys(item), @client.select(:test).execute.first
       end
+
+      context ':if_not_exists' do
+        context 'true' do
+          setup do
+            @item = { :id => 'i', :a => 1, :b => 'b', :c => 'c', :d => 1}
+            @client.insert(:test, @item)
+          end
+
+          should 'not insert if nothing changed' do
+            already_exists_response = @client.insert(:test, @item, {:if_not_exists => true})
+
+            assert_equal false, already_exists_response.first["[applied]"]
+            assert_equal 1, already_exists_response.first["a"]
+            assert_equal "b", already_exists_response.first["b"]
+            assert_equal "c", already_exists_response.first["c"]
+            assert_equal "i", already_exists_response.first["id"]
+          end
+
+          should "insert if identifying fields change" do
+            @item[:a] = 2
+            identifying_field_change = @client.insert(:test, @item, {:if_not_exists => true})
+
+            assert_equal true, identifying_field_change.first["[applied]"]
+          end
+
+          should "not insert if non identifying fields change" do
+            @item[:c] = "foooooooo"
+            identifying_field_change = @client.insert(:test, @item, {:if_not_exists => true})
+
+            assert_equal false, identifying_field_change.first["[applied]"]
+            assert_equal 1, identifying_field_change.first["a"]
+            assert_equal "b", identifying_field_change.first["b"]
+            assert_equal "c", identifying_field_change.first["c"]
+            assert_equal "i", identifying_field_change.first["id"]
+          end
+        end
+      end
     end
 
     context 'select' do
-
       setup do
         @client.insert(:test, :id => 'i', :a => 1, :b => 'b', :c => '1')
         @client.insert(:test, :id => 'i', :a => 2, :b => 'a', :c => '1')
