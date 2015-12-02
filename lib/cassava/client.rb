@@ -2,7 +2,7 @@ module Cassava
   class Client
     attr_reader :session, :executor
 
-    # @param [Cassandra::Session] The session object
+    # @param session [Cassandra::Session] The session object
     # @option opts [Object] :logger responding to :debug, :info, :warn, :error, :fatal
     def initialize(session, opts = {})
       @session = session
@@ -15,37 +15,37 @@ module Cassava
       executor.execute_async(insert_statement(table, data), :arguments => data.values)
     end
 
-    # @param [Symbol] table the table name
-    # @param [Hash] A hash of column names to data, which will be inserted into the table
+    # @param table [Symbol] the table name
+    # @param data [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       statement = insert_statement(table, data)
       executor.execute(statement, :arguments => data.values)
     end
 
-    # @param [Symbol] table the table name
-    # @param [Array<Symbol>] An optional list of column names (as symbols), to only select those columns
+    # @param table [Symbol] the table name
+    # @param columns [Array<Symbol>] An optional list of column names (as symbols), to only select those columns
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def select(table, columns = nil)
       StatementBuilder.new(executor).select(table, columns)
     end
 
-    # @param [Symbol] table the table name
-    # @param [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
+    # @param table [Symbol] the table name
+    # @param columns [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def delete(table, columns = nil)
       StatementBuilder.new(executor).delete(table, columns)
     end
 
     # Pass a raw query to execute synchronously to the underlying session object.
-    # @param [String] statement
-    # @param [Hash] options accepted by Cassandra::Session
+    # @param statement[String] The statment to execute
+    # @param opts [Hash] options accepted by Cassandra::Session
     def execute_async(statement, opts = {})
       executor.execute_async(statement, opts)
     end
 
     # Pass a raw query to execute asynchronously to the underlying session object.
-    # @param [String] statement
-    # @param [Hash] options accepted by Cassandra::Session
+    # @param statement [String] The statment to execute
+    # @param opts [Hash] options accepted by Cassandra::Session
     def execute(statement, opts = {})
       executor.execute(statement, opts)
     end
@@ -78,37 +78,40 @@ module Cassava
     end
 
     # Execute the statement synchronously
-    # @param [Hash] options accepted by Cassandra::Session
+    # @param opts [Hash] options accepted by Cassandra::Session
     def execute(opts = {})
       options = opts.dup.merge(:arguments => prepared_arguments)
       executor.execute(prepared_statement, options)
     end
 
     # Execute the statement asynchronously
-    # @param [Hash] options accepted by Cassandra::Session
+    # @param opts [Hash] options accepted by Cassandra::Session
     def execute_async(opts = {})
       options = opts.dup.merge(:arguments => prepared_arguments)
       executor.execute_async(prepared_statement, options)
     end
 
-    # @param [Symbol] table to select data from
-    # @param [Array<Symbol>] Columns to select -- defaults to all.
+    # @param table [Symbol] table to select data from
+    # @param columns [Array<Symbol>] Columns to select -- defaults to all.
     # @return [StatementBuilder]
     def select(table, columns = nil)
       add_clause(SelectClause.new(table, columns), :main)
     end
 
-    # @param [Symbol] table to delete data from
-    # @param [Array<Symbol>] Columns to delete -- defaults to all.
+    # @param table [Symbol] table to delete data from
+    # @param columns [Array<Symbol>] Columns to delete -- defaults to all.
     # @return [StatementBuilder]
     def delete(table, columns = nil)
       add_clause(DeleteClause.new(table, columns), :main)
     end
 
-    # Provide either a String and a list of arguments, or a hash. Examples:
+    # Condition the query based on a condition
+    # Provide either a String and a list of arguments, or a hash.
+    # @example
     #      statement.where('id = ? and field > ?', 1, 'a')
-    #
+    # @example
     #      statement.where(:id => 1, :field => 'x')
+    # @param args [Array] arguments representing the where condition
     # @return [StatementBuilder]
     def where(*args)
       clause = clauses[:where] || WhereClause.new([], [])
@@ -121,14 +124,14 @@ module Cassava
       add_clause('ALLOW FILTERING', :allow_filtering)
     end
 
-    # param [Symbol] clustering_column to order by
-    # @param [:asc|:desc] the direction to order by, defaults to :asc
+    # @param clustering_column [Symbol] clustering_column to order by
+    # @param direction [:asc|:desc] the direction to order by, defaults to :asc
     # @return [StatementBuilder]
     def order(clustering_column, direction = :asc)
       add_clause("ORDER BY #{clustering_column.to_s} #{direction.to_s}", :order)
     end
 
-    # param [Integer] maximum number of results to return
+    # @param n [Integer] maximum number of results to return
     # @return [StatementBuilder]
     def limit(n)
       add_clause("LIMIT #{n.to_i}", :limit)
@@ -140,6 +143,7 @@ module Cassava
       add_clause(clauses[:main].count, :main)
     end
 
+    # @return [String] the CQL statement that this StatementBuilder represents
     def statement
       clauses.sort_by { |s| CLAUSE_ORDERING[s[0]] }.map { |s| s[1] }.join(' ')
     end
@@ -165,7 +169,7 @@ module Cassava
 
   SelectClause = Struct.new(:table, :columns, :count_boolean) do
     def count
-      self.class.new(table, columns = nil, count_boolean = true)
+      self.class.new(table, _columns = nil, _count_boolean = true)
     end
 
     def to_s
