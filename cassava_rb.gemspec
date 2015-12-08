@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'cassava/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "cassava"
+  spec.name          = "cassava_rb"
   spec.version       = Cassava::VERSION
   spec.authors       = ["Arron Norwell"]
   spec.email         = ["anorwell@datto.com"]
