@@ -11,7 +11,7 @@ An unopinionated Cassandra client built on top of the Datastax Cassandra Driver.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cassava', github: 'backupify/cassava'
+gem 'cassava_rb', github: 'backupify/cassava'
 ```
 
 And then execute:
@@ -20,7 +20,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install cassava
+    $ gem install cassava_rb
 
 ## Usage
 
