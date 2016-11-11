@@ -11,14 +11,14 @@ module Cassava
     end
 
     # @see #insert
-    def insert_async(table, data)
+    def insert_async(table, data, ttl = nil)
       executor.execute_async(insert_statement(table, data), :arguments => data.values)
     end
 
     # @param table [Symbol] the table name
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
-    def insert(table, data)
-      statement = insert_statement(table, data)
+    def insert(table, data, ttl = nil)
+      statement = insert_statement(table, data, ttl)
       executor.execute(statement, :arguments => data.values)
     end
 
@@ -52,9 +52,10 @@ module Cassava
 
     private
 
-    def insert_statement(table, data)
+    def insert_statement(table, data, ttl = nil)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
+      statement_cql += " USING TTL #{ttl}" if ttl
       executor.prepare(statement_cql)
     end
   end
