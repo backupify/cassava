@@ -12,7 +12,7 @@ module Cassava
 
     # @see #insert
     def insert_async(table, data, ttl = nil)
-      executor.execute_async(insert_statement(table, data), :arguments => data.values)
+      executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
     end
 
     # @param table [Symbol] the table name
