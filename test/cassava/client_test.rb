@@ -47,7 +47,7 @@ module Cassava
         ttl = 12345
         @client.insert(:test, item, ttl)
 
-        assert @client.send(:insert_statement, :test, item, ttl) =~ /\sUSING\sTTL\s#{ttl}/
+        assert @client.send(:insert_statement, :test, item, ttl).cql =~ /\sUSING\sTTL\s#{ttl}$/
         assert_equal string_keys(item), @client.select(:test).execute.first
       end
     end
