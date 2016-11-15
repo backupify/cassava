@@ -43,9 +43,9 @@ module Cassava
       end
 
       should 'allow the insertion with a ttl' do
-        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1}
         ttl = 12345
-        @client.insert(:test, item, ttl)
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl }
+        @client.insert(:test, item)
 
         assert @client.send(:insert_statement, :test, item, ttl).cql =~ /\sUSING\sTTL\s#{ttl}$/
         assert_equal string_keys(item), @client.select(:test).execute.first

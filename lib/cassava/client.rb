@@ -11,13 +11,15 @@ module Cassava
     end
 
     # @see #insert
-    def insert_async(table, data, ttl = nil)
+    def insert_async(table, data)
+      ttl = data.delete(:ttl)
       executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
     end
 
     # @param table [Symbol] the table name
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
-    def insert(table, data, ttl = nil)
+    def insert(table, data)
+      ttl = data.delete(:ttl)
       statement = insert_statement(table, data, ttl)
       executor.execute(statement, :arguments => data.values)
     end
