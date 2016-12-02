@@ -101,7 +101,7 @@ To delete only certain columns:
 client.delete(table, [:c, :d]).where(:id => 1, :a => 1).execute
 ```
 
-Note here that :c and :d must not be part of the primary key.
+Note here that `:id` and `:a` must be part of the primary key and `:c` and `:d` must not be part of the primary key.
 
 ## Contributing
 
