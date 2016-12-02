@@ -38,14 +38,14 @@ module Cassava
       StatementBuilder.new(executor).delete(table, columns)
     end
 
-    # Pass a raw query to execute synchronously to the underlying session object.
+    # Pass a raw query to execute asynchronously to the underlying session object.
     # @param statement[String] The statment to execute
     # @param opts [Hash] options accepted by Cassandra::Session
     def execute_async(statement, opts = {})
       executor.execute_async(statement, opts)
     end
 
-    # Pass a raw query to execute asynchronously to the underlying session object.
+    # Pass a raw query to execute synchronously to the underlying session object.
     # @param statement [String] The statment to execute
     # @param opts [Hash] options accepted by Cassandra::Session
     def execute(statement, opts = {})
