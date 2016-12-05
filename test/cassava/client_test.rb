@@ -178,6 +178,14 @@ module Cassava
         resulting_ttl = @client.select_ttl(:test, :d, {:id => 'i'})
         assert resulting_ttl.nil?
       end
+
+      should 'handle string vs integer arguments properly' do
+        where_args = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(" }
+        statement = @client.send(:select_ttl_statement, :test, :c, where_args)
+
+        assert_match /a\s=\s1/, statement
+        assert_match /b\s=\s'b'/, statement
+      end
     end
 
     context 'delete' do
