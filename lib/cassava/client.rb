@@ -32,6 +32,14 @@ module Cassava
     end
 
     # @param table [Symbol] the table name
+    # @param target_attr [String] The attribute to select the TTL for
+    # @param where_arguments [Hash] Pairs of keys and values for the where clause
+    def select_ttl(table, target_attr, where_arguments)
+      statement = select_ttl_statement(table, target_attr, where_arguments)
+      executor.execute(statement).rows.first["ttl(#{target_attr})"]
+    end
+
+    # @param table [Symbol] the table name
     # @param columns [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def delete(table, columns = nil)
@@ -59,6 +67,22 @@ module Cassava
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
       statement_cql += " USING TTL #{ttl}" if ttl
       executor.prepare(statement_cql)
+    end
+
+    # @param table [Symbol] the table name
+    # @param target_attr [Symbol] The attribute to select the TTL for
+    # @param where_arguments [Hash] Pairs of keys and values for the where clause
+    def select_ttl_statement(table, target_attr, where_arguments)
+      statement = "SELECT ttl(#{target_attr}) FROM #{table} WHERE "
+      where_clause = where_arguments.map do |(key, val)|
+        if val.is_a? Integer
+          "#{key} = #{val}"
+        else
+          "#{key} = '#{val}'"
+        end
+      end
+
+      statement + where_clause.join(" AND ")
     end
   end
 

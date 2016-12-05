@@ -161,6 +161,33 @@ module Cassava
       end
     end
 
+    context 'select_ttl' do
+      should 'allow an existing ttl to be read' do
+        ttl = 12345
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl }
+        @client.insert(:test, item)
+
+        resulting_ttl = @client.select_ttl(:test, :d, {:id => 'i'})
+        assert (1..ttl).include? resulting_ttl
+      end
+
+      should 'return nil if there is no ttl set on a cell' do
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1 }
+        @client.insert(:test, item)
+
+        resulting_ttl = @client.select_ttl(:test, :d, {:id => 'i'})
+        assert resulting_ttl.nil?
+      end
+
+      should 'handle string vs integer arguments properly' do
+        where_args = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(" }
+        statement = @client.send(:select_ttl_statement, :test, :c, where_args)
+
+        assert_match /a\s=\s1/, statement
+        assert_match /b\s=\s'b'/, statement
+      end
+    end
+
     context 'delete' do
       setup do
         @client.insert(:test, :id => 'i', :a => 2, :b => 'a', :c => '1', :d => 1)
