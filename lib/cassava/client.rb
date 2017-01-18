@@ -220,6 +220,7 @@ module Cassava
   end
 
   WhereClause = Struct.new(:parts, :arguments) do
+    COMPARATOR_SYMBOLS = [ '>', '<' ]
     def where(*args)
       new_parts = self.parts.dup || []
       new_arguments = self.arguments.dup || []
@@ -231,6 +232,10 @@ module Cassava
       when Hash
         new_parts += args[0].map { |key, value| "#{key} #{where_string(value)}" }
         new_arguments += args[0].values.flatten
+      when Array
+        between_args = args[0][1..-1]
+        new_parts += between_args.length.times.map{ |i| next unless between_args[i]; "#{args[0][0]} #{COMPARATOR_SYMBOLS[i]} ?" }.compact
+        new_arguments += between_args.compact
       end
       self.class.new(new_parts, new_arguments)
     end

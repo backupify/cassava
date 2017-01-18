@@ -96,6 +96,23 @@ module Cassava
           assert_equal [2,3].to_set, items.map { |x| x['a'] }.to_set
         end
 
+        context 'array arguments' do
+          should 'return values in between specified values' do
+            items = @client.select(:test).where(['a', 0, 2]).allow_filtering.execute
+            assert_equal [1].to_set, items.map { |x| x['a'] }.to_set
+          end
+
+          should 'return values greater than provided value' do
+            items = @client.select(:test).where(['a', 2, nil]).allow_filtering.execute
+            assert_equal [3,4].to_set, items.map { |x| x['a'] }.to_set
+          end
+
+          should 'return values less than provided value' do
+            items = @client.select(:test).where(['a', nil, 3]).allow_filtering.execute
+            assert_equal [1,2].to_set, items.map { |x| x['a'] }.to_set
+          end
+        end
+
         should 'create an IN clause when a list of values is passed' do
           items = @client.select(:test).where(:id => 'i', :a => 1, :b => %w(a b)).execute
           assert_equal [1], items.map { |x| x['a'] }
@@ -209,8 +226,8 @@ module Cassava
       should 'delete individual columns' do
         @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
-        assert_equal nil, items.first['c']
-        assert_equal nil, items.first['d']
+        assert_nil items.first['c']
+        assert_nil items.first['d']
       end
 
       context 'hash arguments' do
