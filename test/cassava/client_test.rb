@@ -142,6 +142,7 @@ module Cassava
 
       should 'allow clauses to be chained in any order' do
         items = @client.select(:test).limit(2).allow_filtering.where('a >= 2').execute
+        binding.pry
         assert_equal [2, 4].to_set, items.map { |x| x['a'] }.to_set
       end
 
