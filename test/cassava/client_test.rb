@@ -178,14 +178,6 @@ module Cassava
         resulting_ttl = @client.select_ttl(:test, :d, {:id => 'i'})
         assert resulting_ttl.nil?
       end
-
-      should 'handle string vs integer arguments properly' do
-        where_args = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(" }
-        statement = @client.send(:select_ttl_statement, :test, :c, where_args)
-
-        assert_match /a\s=\s1/, statement
-        assert_match /b\s=\s'b'/, statement
-      end
     end
 
     context 'delete' do
@@ -209,8 +201,8 @@ module Cassava
       should 'delete individual columns' do
         @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
-        assert_equal nil, items.first['c']
-        assert_equal nil, items.first['d']
+        assert_nil items.first['c']
+        assert_nil items.first['d']
       end
 
       context 'hash arguments' do
