@@ -13,8 +13,8 @@ class Minitest::Should::TestCase
 end
 
 def session_for_keyspace(keyspace = 'test_cassava')
-  c = Cassandra.cluster(port: 9242)
-  c.connect(keyspace)
+  @c ||= Cassandra.cluster(port: 9242)
+  @c.connect(keyspace)
 end
 
 def initialize_test_table
