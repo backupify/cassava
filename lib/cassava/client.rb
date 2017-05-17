@@ -14,10 +14,11 @@ module Cassava
     def insert_async(table, data)
       ttl = data.delete(:ttl)
       consistency = data.delete(:consistency)
+      statement = insert_statement(table, data, ttl)
       if consistency.nil?
-        executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
+        executor.execute_async(statement, :arguments => data.values)
       else
-        executor.execute_async(insert_statement(table, data, ttl), { :arguments => data.values, :consistency => consistency })
+        executor.execute_async(statement, { :arguments => data.values, :consistency => consistency })
       end
     end
 
