@@ -13,15 +13,25 @@ module Cassava
     # @see #insert
     def insert_async(table, data)
       ttl = data.delete(:ttl)
-      executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
+      consistency = data.delete(:consistency)
+      if consistency.nil?
+        executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
+      else
+        executor.execute_async(insert_statement(table, data, ttl), { :arguments => data.values, :consistency => consistency })
+      end
     end
 
     # @param table [Symbol] the table name
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       ttl = data.delete(:ttl)
+      consistency = data.delete(:consistency)
       statement = insert_statement(table, data, ttl)
-      executor.execute(statement, :arguments => data.values)
+      if consistency.nil?
+        executor.execute(statement, :arguments => data.values)
+      else
+        executor.execute(statement, { :arguments => data.values, :consistency => consistency })
+      end
     end
 
     # @param table [Symbol] the table name
