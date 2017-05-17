@@ -180,6 +180,21 @@ module Cassava
       end
     end
 
+    context 'select_writetime' do
+      should 'build the correct writetime select statement' do
+        statement = @client.send(:select_writetime_statement, :test, :d, { :id => 'i' })
+        assert_match /SELECT WRITETIME/, statement.cql
+      end
+
+      should 'correctly fetch the timestamp of a given column' do
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "item", :d => 1 }
+        @client.insert(:test, item)
+
+        timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
+        assert timestamp
+      end
+    end
+
     context 'delete' do
       setup do
         @client.insert(:test, :id => 'i', :a => 2, :b => 'a', :c => '1', :d => 1)

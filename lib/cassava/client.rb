@@ -50,6 +50,11 @@ module Cassava
       executor.execute(prepared_statement, :arguments => where_arguments.values).rows.first["ttl(#{target_attr})"]
     end
 
+    def select_writetime(table, target_attr, where_arguments)
+      prepared_statement = select_writetime_statement(table, target_attr, where_arguments)
+      executor.execute(prepared_statement, :arguments => where_arguments.values).rows.first["writetime(#{target_attr})"]
+    end
+
     # @param table [Symbol] the table name
     # @param columns [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
@@ -86,6 +91,15 @@ module Cassava
     # @param where_arguments [Hash] Pairs of keys and values for the where clause
     def select_ttl_statement(table, target_attr, where_arguments)
       statement_cql = "SELECT ttl(#{target_attr}) FROM #{table} WHERE "
+      statement_cql += where_arguments.keys.map { |x| "#{x} = ? " }.join(" AND ")
+      executor.prepare(statement_cql)
+    end
+
+    # @param table [Symbol] the table name
+    # @param target_attr [Symbol] The attribute to select the write time(timestamp) for
+    # @param where_arguments [Hash] Pairs of keys and values for the where clause
+    def select_writetime_statement(table, target_attr, where_arguments)
+      statement_cql = "SELECT WRITETIME(#{target_attr}) FROM #{table} WHERE "
       statement_cql += where_arguments.keys.map { |x| "#{x} = ? " }.join(" AND ")
       executor.prepare(statement_cql)
     end
