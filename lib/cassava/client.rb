@@ -13,15 +13,26 @@ module Cassava
     # @see #insert
     def insert_async(table, data)
       ttl = data.delete(:ttl)
-      executor.execute_async(insert_statement(table, data, ttl), :arguments => data.values)
+      consistency = data.delete(:consistency)
+      statement = insert_statement(table, data, ttl)
+      if consistency.nil?
+        executor.execute_async(statement, :arguments => data.values)
+      else
+        executor.execute_async(statement, { :arguments => data.values, :consistency => consistency })
+      end
     end
 
     # @param table [Symbol] the table name
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       ttl = data.delete(:ttl)
+      consistency = data.delete(:consistency)
       statement = insert_statement(table, data, ttl)
-      executor.execute(statement, :arguments => data.values)
+      if consistency.nil?
+        executor.execute(statement, :arguments => data.values)
+      else
+        executor.execute(statement, { :arguments => data.values, :consistency => consistency })
+      end
     end
 
     # @param table [Symbol] the table name
@@ -35,8 +46,8 @@ module Cassava
     # @param target_attr [String] The attribute to select the TTL for
     # @param where_arguments [Hash] Pairs of keys and values for the where clause
     def select_ttl(table, target_attr, where_arguments)
-      statement = select_ttl_statement(table, target_attr, where_arguments)
-      executor.execute(statement).rows.first["ttl(#{target_attr})"]
+      prepared_statement = select_ttl_statement(table, target_attr, where_arguments)
+      executor.execute(prepared_statement, :arguments => where_arguments.values).rows.first["ttl(#{target_attr})"]
     end
 
     # @param table [Symbol] the table name
@@ -66,6 +77,7 @@ module Cassava
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
       statement_cql += " USING TTL #{ttl}" if ttl
+
       executor.prepare(statement_cql)
     end
 
@@ -73,16 +85,9 @@ module Cassava
     # @param target_attr [Symbol] The attribute to select the TTL for
     # @param where_arguments [Hash] Pairs of keys and values for the where clause
     def select_ttl_statement(table, target_attr, where_arguments)
-      statement = "SELECT ttl(#{target_attr}) FROM #{table} WHERE "
-      where_clause = where_arguments.map do |(key, val)|
-        if val.is_a? Integer
-          "#{key} = #{val}"
-        else
-          "#{key} = '#{val}'"
-        end
-      end
-
-      statement + where_clause.join(" AND ")
+      statement_cql = "SELECT ttl(#{target_attr}) FROM #{table} WHERE "
+      statement_cql += where_arguments.keys.map { |x| "#{x} = ? " }.join(" AND ")
+      executor.prepare(statement_cql)
     end
   end
 
@@ -142,6 +147,7 @@ module Cassava
     # @return [StatementBuilder]
     def where(*args)
       clause = clauses[:where] || WhereClause.new([], [])
+
       add_clause(clause.where(*args), :where)
     end
 
