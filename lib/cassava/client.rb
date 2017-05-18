@@ -13,10 +13,10 @@ module Cassava
     # @see #insert
     def insert_async(table, data)
       ttl = data.delete(:ttl)
-      timestamp = data.delete(:timestamp)
+      optional_timestamp = data.delete(:optional_timestamp)
       consistency = data.delete(:consistency)
 
-      statement = insert_statement(table, data, ttl, timestamp)
+      statement = insert_statement(table, data, ttl, optional_timestamp)
 
       if consistency.nil?
         executor.execute_async(statement, :arguments => data.values)
@@ -29,10 +29,10 @@ module Cassava
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       ttl = data.delete(:ttl)
-      timestamp = data.delete(:timestamp)
+      optional_timestamp = data.delete(:optional_timestamp)
       consistency = data.delete(:consistency)
 
-      statement = insert_statement(table, data, ttl, timestamp)
+      statement = insert_statement(table, data, ttl, optional_timestamp)
 
       if consistency.nil?
         executor.execute(statement, :arguments => data.values)
@@ -84,16 +84,16 @@ module Cassava
 
     private
 
-    def insert_statement(table, data, ttl = nil, timestamp = nil)
+    def insert_statement(table, data, ttl = nil, optional_timestamp = nil)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
       
-      if ttl && timestamp
-        statement_cql += " USING TTL #{ttl} AND TIMESTAMP #{timestamp}" 
+      if ttl && optional_timestamp
+        statement_cql += " USING TTL #{ttl} AND TIMESTAMP #{optional_timestamp}" 
       elsif ttl
         statement_cql += " USING TTL #{ttl} "
-      elsif timestamp
-        statement_cql += " USING TIMESTAMP #{timestamp}"
+      elsif optional_timestamp
+        statement_cql += " USING TIMESTAMP #{optional_timestamp}"
       end
 
       executor.prepare(statement_cql)
