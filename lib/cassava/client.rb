@@ -87,8 +87,14 @@ module Cassava
     def insert_statement(table, data, ttl = nil, timestamp = nil)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
-      statement_cql += " USING TTL #{ttl} " if ttl
-      statement_cql += " USING TIMESTAMP #{timestamp}" if timestamp
+      
+      if ttl && timestamp
+        statement_cql += " USING TTL #{ttl} AND TIMESTAMP #{timestamp}" 
+      elsif ttl
+        statement_cql += " USING TTL #{ttl} "
+      elsif timestamp
+        statement_cql += " USING TIMESTAMP #{timestamp}"
+      end
 
       executor.prepare(statement_cql)
     end

@@ -60,6 +60,18 @@ module Cassava
         saved_timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
         assert_equal timestamp, saved_timestamp
       end
+
+      should 'allow the insertion of a ttl and a timestamp' do
+        ttl = 12345
+        timestamp = Time.now.to_i
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :timestamp => timestamp }
+        @client.insert(:test, item)
+
+        assert @client.send(:insert_statement, :test, item, ttl, timestamp).cql =~ /\sUSING\sTTL\s#{ttl}\sAND\sTIMESTAMP\s#{timestamp}/
+        assert_equal string_keys(item), @client.select(:test).execute.first
+        saved_timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
+        assert_equal timestamp, saved_timestamp
+      end
     end
 
     context 'select' do
