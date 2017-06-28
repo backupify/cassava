@@ -64,8 +64,8 @@ module Cassava
     # @param table [Symbol] the table name
     # @param columns [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
-    def delete(table, columns = nil)
-      StatementBuilder.new(executor).delete(table, columns)
+    def delete(table, columns = nil, timestamp = nil)
+      StatementBuilder.new(executor).delete(table, columns, timestamp)
     end
 
     # Pass a raw query to execute asynchronously to the underlying session object.
@@ -160,8 +160,8 @@ module Cassava
     # @param table [Symbol] table to delete data from
     # @param columns [Array<Symbol>] Columns to delete -- defaults to all.
     # @return [StatementBuilder]
-    def delete(table, columns = nil)
-      add_clause(DeleteClause.new(table, columns), :main)
+    def delete(table, columns = nil, timestamp=nil)
+      add_clause(DeleteClause.new(table, columns, timestamp), :main)
     end
 
     # Condition the query based on a condition
@@ -242,10 +242,14 @@ module Cassava
     end
   end
 
-  DeleteClause = Struct.new(:table, :columns) do
+  DeleteClause = Struct.new(:table, :columns, :timestamp) do
     def to_s
-      if columns
+      if columns && timestamp
+        "DELETE #{columns.join(', ')} from #{table} USING TIMESTAMP #{timestamp}"
+      elsif columns
         "DELETE #{columns.join(', ')} from #{table}"
+      elsif timestamp
+        "DELETE from #{table} USING TIMESTAMP #{timestamp}"
       else
         "DELETE from #{table}"
       end
