@@ -13,8 +13,11 @@ module Cassava
     # @see #insert
     def insert_async(table, data)
       ttl = data.delete(:ttl)
+      optional_timestamp = data.delete(:optional_timestamp)
       consistency = data.delete(:consistency)
-      statement = insert_statement(table, data, ttl)
+
+      statement = insert_statement(table, data, ttl, optional_timestamp)
+
       if consistency.nil?
         executor.execute_async(statement, :arguments => data.values)
       else
@@ -26,8 +29,11 @@ module Cassava
     # @param data [Hash] A hash of column names to data, which will be inserted into the table
     def insert(table, data)
       ttl = data.delete(:ttl)
+      optional_timestamp = data.delete(:optional_timestamp)
       consistency = data.delete(:consistency)
-      statement = insert_statement(table, data, ttl)
+
+      statement = insert_statement(table, data, ttl, optional_timestamp)
+
       if consistency.nil?
         executor.execute(statement, :arguments => data.values)
       else
@@ -50,11 +56,16 @@ module Cassava
       executor.execute(prepared_statement, :arguments => where_arguments.values).rows.first["ttl(#{target_attr})"]
     end
 
+    def select_writetime(table, target_attr, where_arguments)
+      prepared_statement = select_writetime_statement(table, target_attr, where_arguments)
+      executor.execute(prepared_statement, :arguments => where_arguments.values).rows.first["writetime(#{target_attr})"]
+    end
+
     # @param table [Symbol] the table name
     # @param columns [Array<String] A list of columns that will be deleted. If nil, all columns will be deleted.
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
-    def delete(table, columns = nil)
-      StatementBuilder.new(executor).delete(table, columns)
+    def delete(table, columns = nil, timestamp = nil)
+      StatementBuilder.new(executor).delete(table, columns, timestamp)
     end
 
     # Pass a raw query to execute asynchronously to the underlying session object.
@@ -73,10 +84,17 @@ module Cassava
 
     private
 
-    def insert_statement(table, data, ttl = nil)
+    def insert_statement(table, data, ttl = nil, optional_timestamp = nil)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
-      statement_cql += " USING TTL #{ttl}" if ttl
+      
+      if ttl && optional_timestamp
+        statement_cql += " USING TTL #{ttl} AND TIMESTAMP #{optional_timestamp}" 
+      elsif ttl
+        statement_cql += " USING TTL #{ttl} "
+      elsif optional_timestamp
+        statement_cql += " USING TIMESTAMP #{optional_timestamp}"
+      end
 
       executor.prepare(statement_cql)
     end
@@ -86,6 +104,15 @@ module Cassava
     # @param where_arguments [Hash] Pairs of keys and values for the where clause
     def select_ttl_statement(table, target_attr, where_arguments)
       statement_cql = "SELECT ttl(#{target_attr}) FROM #{table} WHERE "
+      statement_cql += where_arguments.keys.map { |x| "#{x} = ? " }.join(" AND ")
+      executor.prepare(statement_cql)
+    end
+
+    # @param table [Symbol] the table name
+    # @param target_attr [Symbol] The attribute to select the write time(timestamp) for
+    # @param where_arguments [Hash] Pairs of keys and values for the where clause
+    def select_writetime_statement(table, target_attr, where_arguments)
+      statement_cql = "SELECT WRITETIME(#{target_attr}) FROM #{table} WHERE "
       statement_cql += where_arguments.keys.map { |x| "#{x} = ? " }.join(" AND ")
       executor.prepare(statement_cql)
     end
@@ -133,8 +160,8 @@ module Cassava
     # @param table [Symbol] table to delete data from
     # @param columns [Array<Symbol>] Columns to delete -- defaults to all.
     # @return [StatementBuilder]
-    def delete(table, columns = nil)
-      add_clause(DeleteClause.new(table, columns), :main)
+    def delete(table, columns = nil, timestamp=nil)
+      add_clause(DeleteClause.new(table, columns, timestamp), :main)
     end
 
     # Condition the query based on a condition
@@ -215,10 +242,14 @@ module Cassava
     end
   end
 
-  DeleteClause = Struct.new(:table, :columns) do
+  DeleteClause = Struct.new(:table, :columns, :timestamp) do
     def to_s
-      if columns
+      if columns && timestamp
+        "DELETE #{columns.join(', ')} from #{table} USING TIMESTAMP #{timestamp}"
+      elsif columns
         "DELETE #{columns.join(', ')} from #{table}"
+      elsif timestamp
+        "DELETE from #{table} USING TIMESTAMP #{timestamp}"
       else
         "DELETE from #{table}"
       end

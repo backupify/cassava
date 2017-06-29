@@ -47,8 +47,30 @@ module Cassava
         item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl }
         @client.insert(:test, item)
 
-        assert @client.send(:insert_statement, :test, item, ttl).cql =~ /\sUSING\sTTL\s#{ttl}$/
+        assert @client.send(:insert_statement, :test, item, ttl).cql =~ /\sUSING\sTTL\s#{ttl}/
         assert_equal string_keys(item), @client.select(:test).execute.first
+      end
+
+      should 'allow the insertion with a timestamp' do
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :optional_timestamp => timestamp }
+        @client.insert(:test, item)
+
+        assert @client.send(:insert_statement, :test, item, nil, timestamp).cql =~ /\sUSING\sTIMESTAMP\s#{timestamp}/
+        saved_timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
+        assert_equal timestamp, saved_timestamp
+      end
+
+      should 'allow the insertion of a ttl and a timestamp' do
+        ttl = 12345
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :optional_timestamp => timestamp }
+        @client.insert(:test, item)
+
+        assert @client.send(:insert_statement, :test, item, ttl, timestamp).cql =~ /\sUSING\sTTL\s#{ttl}\sAND\sTIMESTAMP\s#{timestamp}/
+        assert_equal string_keys(item), @client.select(:test).execute.first
+        saved_timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
+        assert_equal timestamp, saved_timestamp
       end
     end
 
@@ -180,6 +202,21 @@ module Cassava
       end
     end
 
+    context 'select_writetime' do
+      should 'build the correct writetime select statement' do
+        statement = @client.send(:select_writetime_statement, :test, :d, { :id => 'i' })
+        assert_match /SELECT WRITETIME/, statement.cql
+      end
+
+      should 'correctly fetch the timestamp of a given column' do
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "item", :d => 1 }
+        @client.insert(:test, item)
+
+        timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
+        assert timestamp
+      end
+    end
+
     context 'delete' do
       setup do
         @client.insert(:test, :id => 'i', :a => 2, :b => 'a', :c => '1', :d => 1)
@@ -199,6 +236,15 @@ module Cassava
       end
 
       should 'delete individual columns' do
+        @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
+        items = @client.select(:test).where(:id => 'i', :a => 2).execute
+        assert_nil items.first['c']
+        assert_nil items.first['d']
+      end
+
+      should 'delete with a timestamp' do 
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
+        assert @client.delete(:test, [:c, :d], timestamp).where(:id => 'i', :a => 2, :b => 'a').statement =~ /\sUSING\sTIMESTAMP\s#{timestamp}/
         @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
         assert_nil items.first['c']
