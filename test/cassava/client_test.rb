@@ -52,7 +52,7 @@ module Cassava
       end
 
       should 'allow the insertion with a timestamp' do
-        timestamp = Time.now.to_i
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
         item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :optional_timestamp => timestamp }
         @client.insert(:test, item)
 
@@ -63,7 +63,7 @@ module Cassava
 
       should 'allow the insertion of a ttl and a timestamp' do
         ttl = 12345
-        timestamp = Time.now.to_i
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
         item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :optional_timestamp => timestamp }
         @client.insert(:test, item)
 
