@@ -53,7 +53,7 @@ module Cassava
 
       should 'allow the insertion with a timestamp' do
         timestamp = Time.now.to_i
-        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :timestamp => timestamp }
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :optional_timestamp => timestamp }
         @client.insert(:test, item)
 
         assert @client.send(:insert_statement, :test, item, nil, timestamp).cql =~ /\sUSING\sTIMESTAMP\s#{timestamp}/
@@ -64,7 +64,7 @@ module Cassava
       should 'allow the insertion of a ttl and a timestamp' do
         ttl = 12345
         timestamp = Time.now.to_i
-        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :timestamp => timestamp }
+        item = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :optional_timestamp => timestamp }
         @client.insert(:test, item)
 
         assert @client.send(:insert_statement, :test, item, ttl, timestamp).cql =~ /\sUSING\sTTL\s#{ttl}\sAND\sTIMESTAMP\s#{timestamp}/
@@ -236,6 +236,15 @@ module Cassava
       end
 
       should 'delete individual columns' do
+        @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
+        items = @client.select(:test).where(:id => 'i', :a => 2).execute
+        assert_nil items.first['c']
+        assert_nil items.first['d']
+      end
+
+      should 'delete with a timestamp' do 
+        timestamp = Time.now.to_i * 1000000 + Time.now.usec
+        assert @client.delete(:test, [:c, :d], timestamp).where(:id => 'i', :a => 2, :b => 'a').statement =~ /\sUSING\sTIMESTAMP\s#{timestamp}/
         @client.delete(:test, [:c, :d]).where(:id => 'i', :a => 2, :b => 'a').execute
         items = @client.select(:test).where(:id => 'i', :a => 2).execute
         assert_nil items.first['c']
