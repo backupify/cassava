@@ -72,6 +72,36 @@ module Cassava
         saved_timestamp = @client.select_writetime(:test, :d, { :id => 'i' })
         assert_equal timestamp, saved_timestamp
       end
+
+      context 'batched inserts' do
+        setup do
+          collected_inserts = []
+          ttl = 12345
+          timestamp = Time.now.to_i * 1000000 + Time.now.usec
+          item1 = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :optional_timestamp => timestamp }
+          item2 = { :id => 'j', :a => 1, :b => 'c', :c => "'\"item(", :d => 2, :ttl => ttl, :optional_timestamp => timestamp }
+
+          collected_inserts << @client.generate_batch_insertion_element(:test, item1)
+          collected_inserts << @client.generate_batch_insertion_element(:test, item2)
+        end
+        
+        should 'connect inserts for batching' do
+          collected_inserts = []
+          ttl = 12345
+          timestamp = Time.now.to_i * 1000000 + Time.now.usec
+          item1 = { :id => 'i', :a => 1, :b => 'b', :c => "'\"item(", :d => 1, :ttl => ttl, :optional_timestamp => timestamp }
+          item2 = { :id => 'j', :a => 1, :b => 'c', :c => "'\"item(", :d => 2, :ttl => ttl, :optional_timestamp => timestamp }
+
+          collected_inserts << @client.generate_batch_insertion_element(:test, item1)
+          collected_inserts << @client.generate_batch_insertion_element(:test, item2)
+
+          @client.batch_insert(collected_inserts)
+
+          result = @client.select(:test).execute.rows
+          assert_equal string_keys(item2), result.next
+          assert_equal string_keys(item1), result.next
+        end
+      end
     end
 
     context 'select' do
