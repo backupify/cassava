@@ -62,7 +62,7 @@ module Cassava
           batched_statement.add(batch_element.statement, batch_element.arguments)
         end
       end
-binding.pry
+
       session.execute(batch_object)
     end
 
