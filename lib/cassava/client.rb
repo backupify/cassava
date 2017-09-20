@@ -42,6 +42,31 @@ module Cassava
     end
 
     # @param table [Symbol] the table name
+    # @param data [Hash] A hash of column names to data, which will be inserted into the table
+    # @return [BatchInsertionElement] An object to hold the necessary data for generating a batch insert later
+    def generate_batch_insertion_element(table, data)
+      ttl = data.delete(:ttl)
+      optional_timestamp = data.delete(:optional_timestamp)
+      consistency = data.delete(:consistency)
+
+      statement = insert_statement(table, data, ttl, optional_timestamp)
+
+      BatchInsertionElement.new(statement, data)
+    end
+
+    # @param data [Array] An array of BatchInsertionElements, to be added to the session batch and executed
+    # in a single round trip
+    def batch_insert(batch_inserts_collected)
+      batch_object = session.batch do |batched_statement|
+        batch_inserts_collected.each do |batch_element|
+          batched_statement.add(batch_element.statement, batch_element.arguments)
+        end
+      end
+
+      session.execute(batch_object)
+    end
+
+    # @param table [Symbol] the table name
     # @param columns [Array<Symbol>] An optional list of column names (as symbols), to only select those columns
     # @return [StatementBuilder] A statement builder representing the partially completed statement.
     def select(table, columns = nil)
@@ -87,7 +112,7 @@ module Cassava
     def insert_statement(table, data, ttl = nil, optional_timestamp = nil)
       column_names = data.keys
       statement_cql = "INSERT INTO #{table} (#{column_names.join(', ')}) VALUES (#{column_names.map { |x| '?' }.join(',')})"
-      
+
       if ttl && optional_timestamp
         statement_cql += " USING TTL #{ttl} AND TIMESTAMP #{optional_timestamp}" 
       elsif ttl
@@ -324,5 +349,18 @@ module Cassava
 
   class NullLogger
     def method_missing(*); end
+  end
+
+  class BatchInsertionElement
+    attr_reader :statement, :data
+
+    def initialize(prepared_statement, data_for_arguments)
+      @statement = prepared_statement
+      @data = data_for_arguments
+    end
+
+    def arguments
+      { :arguments => data.values }
+    end
   end
 end
