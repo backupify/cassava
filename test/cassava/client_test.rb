@@ -84,7 +84,7 @@ module Cassava
           collected_inserts << @client.generate_batch_insertion_element(:test, item1)
           collected_inserts << @client.generate_batch_insertion_element(:test, item2)
         end
-        
+
         should 'connect inserts for batching' do
           collected_inserts = []
           ttl = 12345
@@ -101,6 +101,11 @@ module Cassava
           assert_equal string_keys(item2), result.next
           assert_equal string_keys(item1), result.next
         end
+
+        should 'only execute the inserts once' do
+
+        end
+
       end
     end
 
