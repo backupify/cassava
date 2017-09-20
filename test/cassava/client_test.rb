@@ -101,11 +101,6 @@ module Cassava
           assert_equal string_keys(item2), result.next
           assert_equal string_keys(item1), result.next
         end
-
-        should 'only execute the inserts once' do
-
-        end
-
       end
     end
 
